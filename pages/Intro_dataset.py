@@ -9,9 +9,9 @@ import pandas as pd
 import numpy as np
 import dash
 
-#dash.register_page(__name__, 
-#                   name='Dataset and  Overview',
- #                  order=0)
+dash.register_page(__name__, 
+                   name='Dataset and  Overview',
+                   order=0)
 
 df = pd.read_csv('C:\\Users\\Moritus Peters\\Downloads\\dataset.csv')
 
@@ -70,6 +70,7 @@ column_df.append({
 
 
 dash.register_page(__name__, 
+                   path="/intro_dataset",
                    name='Dataset and  Overview',
                    order=0)
 
@@ -88,7 +89,7 @@ layout = dmc.MantineProvider([
         columnDefs=column_df, 
         rowData=df.to_dict('records'),
         style={'height': '400px', 'width': '100%'}, 
-        resetColumnState=False,
+        resetColumnState=True,
         exportDataAsCsv=False,
         selectAll=False,
         deselectAll=False,

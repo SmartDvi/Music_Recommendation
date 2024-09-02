@@ -1,21 +1,18 @@
-import dash_mantine_components as dmc
-import os
-from dash import html, dcc, Input, Output, State, _dash_renderer, callback, Dash, page_container
-from dash_iconify import DashIconify
-import dash
 import pandas as pd
 import numpy as np
+from dash import dcc, Dash, Input, Output, callback,html, State, _dash_renderer
+import dash_ag_grid
+from dash_iconify import DashIconify
+import dash_mantine_components as dmc
 
 _dash_renderer._set_react_version("18.2.0")
 
-
-
 df = pd.read_csv('C:\\Users\\Moritus Peters\\Downloads\\dataset.csv')
 
-#duration_min: Convert duration_ms to minutes for better interpretability
+#Convert duration_ms to minutes for better interpretability
 df['duration_min'] = df['duration_ms'] / 60000
 
-#loudness_level: Categorize the loudness into levels (e.g., Quiet, Moderate, Loud).
+#Categorize the loudness into levels (e.g., Quiet, Moderate, Loud).
 df['loudness_level'] = pd.cut(df['loudness'], bins=[-60, -20, -10, 0], labels=['Quiet', 'Moderate', 'Loud'])
 
 #energy_level: Categorize energy into low, medium, and high levels.
@@ -50,42 +47,43 @@ df['mood_indicator'] = np.select(conditions, choices, default='Unknown')
 # Binary column indicating whether the track genre is acoustic.
 df['is_acoustic'] = df['track_genre'].apply(lambda x: 'acoustic' in x.lower())
 
-
 theme_toggle = dmc.ActionIcon(
     [
-        dmc.Paper(DashIconify(icon='radix-icons:sun', width=25), darkHidden=True),
-        dmc.Paper(DashIconify(icon='radix-icons:moon', width=25), darkHidden=True)
+        dmc.Paper(DashIconify(icon="radix-icons:sun", width=25), darkHidden=True),
+        dmc.Paper(DashIconify(icon="radix-icons:moon", width=25), lightHidden=True),
     ],
     variant='transparent',
-    color='orange',
-    id='color-scheme-toggle',
-    size='lg',
-    ms='auto'
-)
+    color='yellow',
+    id="color-scheme-toggle",
+    ms='auto')
 
-header = dmc.Group(
+header =dmc.Group(
     [
-        dmc.Burger(id='burger-button', opened=False, hiddenFrom='md'),
-        dmc.Text(['Music Insight'], size='xl', fw=700),
+        dmc.Burger(id="burger-button", opened=False, hiddenFrom="md"),
+        dmc.Text(["Spotify Music Analysis"], size="xl", fw=700),
         theme_toggle
     ],
-    justify='flex-start',
+    justify="flex-start",
 )
 
-# developing the sidebar Wrapped in a scrollArea for better Ux
-navbar = dmc.ScrollArea(
-    [
-        dmc.Text('Sidebar Content', fw=700),
-        dmc.NavLink(label='Introduction and Data Table', href="/"),
-        dmc.NavLink(label='Data Analysis', href="/pages.Intro_dataset"),
-        dmc.NavLink(label='Music Recommendation', href="/pages.recommendation_system"),
-        dmc.Select(
-            id='dropdown_danceability_level',
-            label='Select danceabile Music Level',
-            data=[{'label': danceability_level, 'value': danceability_level} for danceability_level in df['danceability_level'].dropna().unique()],
-            value=df['danceability_level'].dropna().iloc[0],
-            clearable=True,
-            style={'marginBottom': "20px"}
+navbar = dcc.Loading(
+    dmc.ScrollArea(
+        [
+            dmc.Text('Sidebar Content', fw=700),
+            dmc.Space(h="md"),
+            dmc.NavLink(label='Introduction and Data Table', href="/intro_dataset"),
+            dmc.Space(h="md"),
+            dmc.NavLink(label='Data Analysis', href="/data_analysis"),
+            dmc.Space(h="md"),
+            dmc.NavLink(label='Music Recommendation', href="/pages.recommendation_system"),
+            dmc.Space(h="md"),
+            dmc.Select(
+                id='dropdown_danceability_level',
+                label='Select danceabile Music Level',
+                data=[{'label': danceability_level, 'value': danceability_level} for danceability_level in df['danceability_level'].dropna().unique()],
+                value=df['danceability_level'].dropna().iloc[0],
+                clearable=True,
+                style={'marginBottom': "20px"}
         ),
         dmc.Select(
             id='dropdown_popularity_level',
@@ -95,26 +93,27 @@ navbar = dmc.ScrollArea(
             clearable=True,
             style={'marginBottom': "20px"}
         )
-
-
-    ],
-    offsetScrollbars=True,
-    type='scroll',
-    style={'height': '100%'}, 
-),
+        ],
+        offsetScrollbars=True,
+        type="scroll",
+        style={"height": "100%"},
+    ),
+)
+"""
 def chart_content():
-    return dmc.Group([
-        dmc.BarChart(id="chart", container={}, style={'width': '45%'}),
-        dmc.PieChart(id="chart", container={}, style={'width': '45%'}),
-        dmc.BarChart(id="chart", container={}, style={'width': '50%'})
-],
-justify='md'
+    return dmc.Group(
+        [
+            dcc.Graph(id="chart-1", figure={}, style={"width": "45%"}),
+            dcc.Graph(id="chart-2", figure={}, style={"width": "45%"})
+        ]
     )
+# Define the layouts for different pages
+page_1_layout = dmc.Container([chart_content()])
+page_2_layout = dmc.Container([chart_content()])
+page_3_layout = dmc.Container([chart_content()])
 
-
-#page_content = dash.page_container
-
-
+page_content = [dmc.Text("Your page content"), 
+                chart_content()]"""
 
 stylesheets = [
     "https://unpkg.com/@mantine/dates@7/styles.css",
@@ -124,7 +123,8 @@ stylesheets = [
     "https://unpkg.com/@mantine/notifications@7/styles.css",
     "https://unpkg.com/@mantine/nprogress@7/styles.css",
 ]
-# 
+
+
 app = Dash(__name__, 
            external_stylesheets=stylesheets,
            use_pages=True,
@@ -134,31 +134,85 @@ app = Dash(__name__,
            )
 
 app_shell = dmc.AppShell(
-    children=[
-        dmc.AppShellHeader(header, px=26),
-        dmc.AppShellNavbar(navbar, p=25),
-        dmc.AppShellNavbar(page_container),
-     
-    ]
-)
-app.layout = dmc.MantineProvider(
-    children=[
-        dcc.Store(id='theme_store', storage_type="local", data='light'),
-        app_shell,
+    [
+        dmc.AppShellHeader(header, px=25),
+        dmc.AppShellNavbar(navbar, p=24),
+        dmc.AppShellAside("Aside", withBorder=False),
+        #dmc.AppShellMain(page_content),
+        dmc.AppShellFooter("Footer")
     ],
-    id='mantine-provider',
-
-    forceColorScheme='light'
+    header={"height": 70},
+    padding="xl",
+    navbar={
+        "width": 375,
+        "breakpoint": "md",
+        "collapsed": {"mobile": True},
+    },
+    aside={
+        "width": 300,
+        "breakpoint": "xl",
+        "collapsed": {"desktop": False, "mobile": True},
+    },
+    id="app-shell",
 )
-@callback(Output('mantine_provider', 'forceColorScheme'),
-          Input('color-scheme-toggle', 'n_clicks'),
-          State('mantine-provider', 'forceColorScheme'),
-          
-          
-          )
 
-def switch_theme(n_clicks, theme):
+
+app.layout = dmc.MantineProvider(
+    [
+        dcc.Store(id="theme-store", storage_type="local", data="light"),
+        app_shell
+    ],
+    id="mantine-provider",
+    forceColorScheme="light",
+)
+
+
+
+
+@callback(
+    Output("app-shell", "navbar"),
+    Input("burger-button", "opened"),
+    State("app-shell", "navbar"),
+)
+def navbar_is_open(opened, navbar):
+    navbar["collapsed"] = {"mobile": not opened}
+    return navbar
+
+
+
+
+@callback(
+    Output("mantine-provider", "forceColorScheme"),
+    Input("color-scheme-toggle", "n_clicks"),
+    State("mantine-provider", "forceColorScheme"),
+    prevent_initial_call=True,
+)
+def switch_theme(_, theme):
     return "dark" if theme == "light" else "light"
 
-if __name__=="__main__":
-    app.run(debug=True, port=6060)
+"""
+# Define pages with dynamic content
+app.validation_layout = html.Div([
+    page_1_layout,
+    page_2_layout,
+    page_3_layout
+])
+
+# Register the pages
+@app.callback(
+    Output("page-content", "children"),
+    Input("url", "pathname")
+)
+def display_page(pathname):
+    if pathname == "/page2":
+        return page_2_layout
+    elif pathname == "/page3":
+        return page_3_layout
+    else:
+        return page_1_layout
+
+
+"""
+if __name__ == "__main__":
+    app.run_server(debug=True, port = 8080)
+
