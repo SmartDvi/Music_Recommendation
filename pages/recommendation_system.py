@@ -1,7 +1,5 @@
 import dash
-from dash import html, dcc, Input, Output, Dash, callback
-from dash_iconify import DashIconify
-import plotly.express as px
+from dash import *
 import dash_ag_grid as dag
 import dash_mantine_components as dmc
 from sklearn.preprocessing import StandardScaler
@@ -10,26 +8,10 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 import pandas as pd
 import numpy as np
 
-app = Dash(__name__, external_stylesheets=dmc.styles.ALL)
+register_page(__name__, path='/recommendation_system', title='recommendation_system')
 
-# Load the dataset
-df = pd.read_csv('C:\\Users\\Moritus Peters\\Downloads\\dataset.csv')
 
-# Convert duration_ms to minutes for better interpretability
-df['duration_min'] = df['duration_ms'] / 60000
-
-# Create a mood indicator
-conditions = [
-    (df['valence'] > 0.5) & (df['energy'] > 0.5),
-    (df['valence'] > 0.5) & (df['energy'] <= 0.5),
-    (df['valence'] <= 0.5) & (df['energy'] > 0.5),
-    (df['valence'] <= 0.5) & (df['energy'] <= 0.5)
-]
-choices = ['Happy', 'Calm', 'Energetic', 'Sad']
-df['mood_indicator'] = np.select(conditions, choices, default='Unknown')
-
-# Create a binary column for acoustic tracks
-df['is_acoustic'] = df['track_genre'].apply(lambda x: 'acoustic' in x.lower())
+from utils import df
 
 # Drop rows with null values in important columns
 df = df.dropna(subset=['artists', 'album_name', 'track_name'])
@@ -44,11 +26,10 @@ df_features_scaled = scaler.fit_transform(df_features)
 nbrs = NearestNeighbors(n_neighbors=10, algorithm='ball_tree').fit(df_features_scaled)
 
 # Define the layout of the app
-app.layout = dmc.MantineProvider(
+layout = dmc.MantineProvider(
     defaultColorScheme='green',
     children=[
-        dmc.Group(
-            children=[
+       
                 dmc.Grid(
                     children=[
                         dmc.GridCol(
@@ -58,7 +39,7 @@ app.layout = dmc.MantineProvider(
                                     id='input_area',
                                     label='Select a Music ',
                                     placeholder='Enter genre, mood, energy level, artist, track name, etc.',
-                                    w=500,
+                                
                                     autosize=True,
                                     minRows=2
                                 ),
@@ -67,12 +48,12 @@ app.layout = dmc.MantineProvider(
                         )
                     ]
                 ),
-                dmc.Grid(
+            dmc.Grid(
                     children=[
                         dmc.GridCol(
                             dag.AgGrid(
                                 id='recommendation-table',
-                                style={'height': '400px', 'width': '100%'},
+                               # style={'height': '400px', 'width': '100%'},
                                 columnDefs=[
                                     {"headerName": "Track Name", "field": 'track_name'},
                                     {'headerName': 'Artist', 'field': 'artists'},
@@ -99,8 +80,8 @@ app.layout = dmc.MantineProvider(
                         )
                     ]
                 )
-            ]
-        )
+            
+        
     ]
 )
 # developing the callback to update recommendation and validation metrics
@@ -171,5 +152,3 @@ def update_recommendations(input_text):
 
 
 
-if __name__ == "__main__":
-    app.run(debug=True, port=8030)
