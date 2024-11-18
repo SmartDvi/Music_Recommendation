@@ -43,3 +43,10 @@ df['mood_indicator'] = np.select(conditions, choices, default='Unknown')
 
 # Binary column indicating whether the track genre is acoustic.
 df['is_acoustic'] = df['track_genre'].apply(lambda x: 'acoustic' in x.lower())
+
+
+color_mapping = {
+    'Low' : 'red',
+    'Medium': 'yellow',
+    'High' : 'green'
+}

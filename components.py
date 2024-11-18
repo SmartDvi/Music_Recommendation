@@ -1,4 +1,5 @@
 import dash_mantine_components as dmc
+from dash import *
 
 from utils import df
 
@@ -19,5 +20,24 @@ p_dropdown = dmc.Select(
             clearable=True,
             style={'marginBottom': "20px"}
         )
+mode_indicator = html.Div(
+    [
+        dmc.Checkbox(
+            id=f'mood_indicator_{i}',
+            label=row,
+            checked=False,  # Set default checked status if required
+            style={"marginTop": '5px', "marginLeft": '33px'}
+        )
+        for i, row in enumerate(df['mood_indicator'].dropna().unique())
+    ]
+)
 
 
+#print("Available columns in df:", df.columns)
+#print("Sample rows in df:")
+#print(df.head())
+#print(df.info())
+#print(f"the cplumn: {df['mood_indicator'].value_counts()}")
+#print(f"the cplumn: {df['track_name'].value_counts()}")
+grouped_data = df.groupby("energy_level")["energy"].sum().reset_index()
+print(grouped_data)

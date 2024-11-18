@@ -136,4 +136,4 @@ def switch_theme(_, theme):
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True, port=6040)
+    app.run(debug=True, port=6040)
