@@ -190,7 +190,7 @@ layout = dmc.MantineProvider(
 
 @callback(
     Output("mood_analysis", "children"),
-    Input("dropdown_danceability_level", "value")  
+    Input("f'mood_indicator_{i}", "value")  
 )
 def update_mood_analysis(selected_mood):
     if not selected_mood:
