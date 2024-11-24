@@ -20,8 +20,7 @@ p_dropdown = dmc.Select(
             clearable=True,
             style={'marginBottom': "20px"}
         )
-mode_indicator = html.Div(
-    [
+"""mode_indicator =[
         dmc.Checkbox(
             id=f'mood_indicator_{i}',
             label=row,
@@ -29,8 +28,8 @@ mode_indicator = html.Div(
             style={"marginTop": '5px', "marginLeft": '33px'}
         )
         for i, row in enumerate(df['mood_indicator'].dropna().unique())
-    ]
-)
+    ]"""
+
 
 
 #print("Available columns in df:", df.columns)

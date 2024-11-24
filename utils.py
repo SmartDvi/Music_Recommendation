@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import plotly.express as px
 
 
 
@@ -45,8 +46,28 @@ df['mood_indicator'] = np.select(conditions, choices, default='Unknown')
 df['is_acoustic'] = df['track_genre'].apply(lambda x: 'acoustic' in x.lower())
 
 
-color_mapping = {
+color_mapping1 = {
     'Low' : 'red',
     'Medium': 'yellow',
     'High' : 'green'
 }
+
+
+
+
+
+def generate_plotly_colors(unique_values, colorscale="Viridis"):
+    """
+    Generate a color mapping for unique values using Plotly's color scales.
+
+    Parameters:
+    - unique_values (list): List of unique values to map colors to.
+    - colorscale (str): Name of the Plotly colorscale to use.
+
+    Returns:
+    - dict: A dictionary mapping each unique value to a color.
+    """
+    num_values = len(unique_values)
+    color_palette = px.colors.sample_colorscale(colorscale, [i / (num_values - 1) for i in range(num_values)])
+    return {value: color for value, color in zip(unique_values, color_palette)}
+

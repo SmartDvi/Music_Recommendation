@@ -5,12 +5,14 @@ from dash_iconify import DashIconify
 from dash import Dash, _dash_renderer, dcc, callback, Input, Output, State
 
 _dash_renderer._set_react_version("18.2.0")
+from components import p_dropdown, dropdown
 
 app = Dash(
     external_stylesheets=dmc.styles.ALL, 
     use_pages=True,
     
 )
+
 
 
 links = dmc.Stack(
@@ -21,7 +23,7 @@ links = dmc.Stack(
     ]
 )
 
-theme_toggle = dmc.ActionIcon(
+theme_toggle = dmc.Switch(
     [
         dmc.Paper(DashIconify(icon="radix-icons:sun", width=25), darkHidden=True),
         dmc.Paper(DashIconify(icon="radix-icons:moon", width=25), lightHidden=True),
@@ -30,7 +32,7 @@ theme_toggle = dmc.ActionIcon(
     color="yellow",
     id="color-scheme-toggle",
     size="lg",
-    ms="auto",
+    ms="auto"
 )
 
 header = dmc.Group(
@@ -52,7 +54,10 @@ navbar = dcc.Loading(
       dmc.Stack(
                 [
                     
-                    links
+                    links,
+                   # mode_indicator,
+                    dropdown,
+                    p_dropdown
 
                 ]
             )

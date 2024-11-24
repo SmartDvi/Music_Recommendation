@@ -2,10 +2,11 @@ import dash_mantine_components as dmc
 from dash.exceptions import PreventUpdate
 from dash import *
 
-from utils import df, color_mapping
-from components import mode_indicator, dropdown
+from utils import df, generate_plotly_colors
+from components import dropdown, p_dropdown
 
 register_page(__name__, path="/insights", name="insight", order=2)
+
 
 # Reusable function for metric cards
 def create_metric_card(title, value, color):
@@ -62,7 +63,7 @@ layout = dmc.MantineProvider(
                         dmc.Paper(
                             [
                                 dmc.Text(
-                                    "Popularity",
+                                    "Popularity prediction",
                                     size="md",
                                     fw=600,
                                     ta="center",
@@ -109,13 +110,13 @@ layout = dmc.MantineProvider(
                                         dmc.Paper(
                                             [
                                                 dmc.Text(
-                                                    "Duration vs. Danceability",
+                                                    "Duration vs Danceability",
                                                     size="sm",
                                                     fw=600,
                                                     mb=10,
                                                 ),
                                                 dmc.Container(
-                                                    id="Duration_vs._Danceability",
+                                                    id="duration_vs_danceability",
                                                     style={"height": "255px"},
                                                 ),
                                             ],
@@ -189,15 +190,15 @@ layout = dmc.MantineProvider(
 
 
 @callback(
-    Output("mood_analysis", "children"),
-    Input("f'mood_indicator_{i}", "value")  
+    Output("Average_Popularity_Mood", "children"),
+    Input("dropdown_popularity_level", "value")  
 )
 def update_mood_analysis(selected_mood):
     if not selected_mood:
         raise PreventUpdate
 
     # Filter data for the selected mood
-    filtered_data = df[df["mood_indicator"] == selected_mood]
+    filtered_data = df[df["popularity_level"] == selected_mood]
 
     if filtered_data.empty:
         return dmc.Text("No data available for the selected mood.")
@@ -214,9 +215,55 @@ def update_mood_analysis(selected_mood):
 
     # Create the Donut Chart
     return dmc.DonutChart(
-        data=donut_data.to_dict('records'),
+        data=donut_data,
         thickness=30,
-        styles={"margin": "auto"},
+        size=300,
+       withLabels=True,
+       tooltipDataSource="segment"
     )
 
 
+@callback(Output("duration_vs_danceability", "children"),
+          Input('dropdown_danceability_level', "value"),
+          )
+
+def po_da(selceted_dance_level):
+    f_data = df[df['danceability_level'] == selceted_dance_level]
+
+    if f_data.empty:
+        return dmc.Text('No data avaliable for the analysis')
+    
+    unique_genres = df["track_genre"].unique()
+    genre_color_mapping = generate_plotly_colors(unique_genres)
+    
+    f_data["color"] = f_data["track_genre"].map(genre_color_mapping)
+
+    print(f_data["color"])
+
+    
+    t_data = [
+        {
+            'name': 'popularity',
+            'data' : f_data.to_dict('records'),
+            'color': 'orange'
+        },
+        {
+            'name': 'danceability',
+            'data' : f_data.to_dict('records'),
+           'color': 'green'
+        }
+    ]
+
+    return dmc.ScatterChart(
+        id='popularity_dancibility',
+        h=300,
+        data=t_data,
+        dataKey = {'x':"danceability", 'y':"Popularity"},
+        xAxisLabel="danceability",
+        yAxisLabel="Popularity"
+
+    )
+
+    
+
+    
