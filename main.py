@@ -1,44 +1,30 @@
-
-import dash_mantine_components as dmc
 import dash
+import dash_mantine_components as dmc
 from dash_iconify import DashIconify
-from dash import Dash, _dash_renderer, dcc, callback, Input, Output, State
+import pprint
+from dash import Dash, _dash_renderer, dcc, callback, Input, Output, State, html, page_container, get_relative_path
 
 _dash_renderer._set_react_version("18.2.0")
-from components import p_dropdown, dropdown
 
-app = Dash(
-    external_stylesheets=dmc.styles.ALL, 
-    use_pages=True,
-    
-)
+app = Dash(external_stylesheets=dmc.styles.ALL, use_pages=True)
 
-
-
-links = dmc.Stack(
-    [
-        dmc.Anchor(f"{page['name']}", href=page["relative_path"])
-        for page in dash.page_registry.values()
-        if page["module"] != "pages.not_found_404"
-    ]
-)
-
-theme_toggle = dmc.Switch(
+theme_toggle = dmc.ActionIcon(
     [
         dmc.Paper(DashIconify(icon="radix-icons:sun", width=25), darkHidden=True),
         dmc.Paper(DashIconify(icon="radix-icons:moon", width=25), lightHidden=True),
     ],
     variant="transparent",
-    color="yellow",
+    #color="yellow",
     id="color-scheme-toggle",
+    style={"marginLeft": "auto"},
     size="lg",
-    ms="auto"
+   # ms="auto",
 )
 
 header = dmc.Group(
     [
-        dmc.Burger(id="burger-button", opened=True, hiddenFrom="md"),
-        dmc.Text("Spotify Music Analysis", size="lg",ta='center',c='blue', fw=700),
+        dmc.Burger(id="burger-button", opened=False, hiddenFrom="md"),
+        dmc.Text(["Header"], size="xl", fw=700),
         theme_toggle
     ],
     justify="flex-start",
@@ -46,65 +32,64 @@ header = dmc.Group(
 )
 
 
-# developing the side setup inside a variable 
-navbar = dcc.Loading(
-    dmc.ScrollArea(
 
-[
-      dmc.Stack(
-                [
-                    
-                    links,
-                   # mode_indicator,
-                    dropdown,
-                    p_dropdown
 
-                ]
-            )
-], offsetScrollbars=True,
-type='scroll',
-style={'height': '100%'}
-    ),
+def create_main_link(icon, label, href):
+    return dmc.Anchor(
+        dmc.Group(
+            [
+                DashIconify(
+                    icon=icon,
+                    width=23,
+                ) if icon else None,
+                dmc.Text(label, size="sm"),
+            ]
+        ),
+        # use get_relative_path when hosting to services like
+        # Dash Enterprise or pycafe that uses pathname prefixes.
+        # See the dash docs for mor info
+        href=get_relative_path(href),
+        variant="text",
+        mb=5,
+        underline=False,
+    )
+
+navbar = dmc.Group(
+            dmc.ScrollArea(
+            [
+                create_main_link(icon=None, label=page["name"], href=page["path"])
+                for page in dash.page_registry.values()
+                if page["module"] != "pages.not_found_404"
+            ],
+            offsetScrollbars=True,
+            type="scroll",
+            style={"height": "100%"},
+        )
 )
 
 
 app_shell = dmc.AppShell(
     [
-        dmc.AppShellHeader(header, px=15),
-        dmc.AppShellNavbar(navbar, p=19),
-        dmc.AppShellMain(dash.page_container, py=60, pr=5),
-        dmc.AppShellFooter(
-            [
-                dmc.Group(
-                    [
-                        dmc.NavLink(
-                            label= 'Sources Code',
-                            description='double Sources',
-                            leftSection=dmc.Badge(
-                                "2", size="xs", variant='filled', color='orange', w=16, h=16,p=0
-                            ),
-                            childrenOffset=28,
-                            children=[
-                                dmc.NavLink(label="GitHub", href='https://github.com/SmartDvi/Air_Pollution.git'),
-                                dmc.NavLink(label="PY.CAFE", href='https://py.cafe/SmartDvi/plotly-global-air-quality')
-                            ]
-
-                        )
-                    ], justify='lg'
-                )
-            ]
-        )
+        dmc.AppShellHeader(header, px=25),
+        dmc.AppShellNavbar(navbar, p=24),
+        dmc.AppShellMain(page_container, p=0),
+        dmc.AppShellFooter("Footer", h=50, ml=400)
     ],
     header={"height": 70},
     padding="xl",
     navbar={
-        "width": 250,
+        "width": 80,
         "breakpoint": "md",
         "collapsed": {"mobile": True},
     },
     aside={
-        "width": 150,
-        "breakpoint": "xs",
+        "width": 100,
+        "breakpoint": "xl",
+        "collapsed": {"desktop": False, "mobile": True},
+    },
+    footer={
+        "width": 300,
+        "breakpoint": "md",
         "collapsed": {"desktop": False, "mobile": True},
     },
     id="app-shell",
@@ -112,6 +97,7 @@ app_shell = dmc.AppShell(
 
 app.layout = dmc.MantineProvider(
     [
+        dcc.Store(id="theme-store", storage_type="local", data="light"),
         app_shell
     ],
     id="mantine-provider",
@@ -125,7 +111,7 @@ app.layout = dmc.MantineProvider(
     State("app-shell", "navbar"),
 )
 def navbar_is_open(opened, navbar):
-    navbar["collapsed"] = {"mobile": opened}
+    navbar["collapsed"] = {"mobile": not opened}
     return navbar
 
 
@@ -136,9 +122,14 @@ def navbar_is_open(opened, navbar):
     prevent_initial_call=True,
 )
 def switch_theme(_, theme):
-    return "dark" if theme == "light" else "light"
+    new_theme = "dark" if theme == "light" else "light"
+    new_icon = [
+        dmc.Paper(DashIconify(icon="radix-icons:sun", width=25), darkHidden=(new_theme == "dark")),
+        dmc.Paper(DashIconify(icon="radix-icons:moon", width=25), lightHidden=(new_theme == "light")),
+    ]
+    return new_theme, new_icon
 
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=6040)
+    app.run_server(debug=True, port=6070)

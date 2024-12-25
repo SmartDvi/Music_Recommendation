@@ -1,3 +1,4 @@
+
 import dash_mantine_components as dmc
 from dash import *
 
@@ -12,23 +13,45 @@ dropdown = dmc.Select(
                 clearable=True,
                 style={'marginBottom': "20px"}
         )
-p_dropdown = dmc.Select(
-            id='dropdown_popularity_level',
-            label='Select danceabile Music Level',
-            data=[{'label': popularity_level, 'value': popularity_level} for popularity_level in df['popularity_level'].dropna().unique()],
-            value=df['popularity_level'].dropna().iloc[0],
+
+track_genre_drp = dmc.Select(
+            id='dropdown_track_genre',
+            label='Select track_genre Music',
+            data=[{'label': track_genre, 'value': track_genre} for track_genre in df['track_genre'].dropna().unique()],
+            value=df['track_genre'].dropna().iloc[0],
             clearable=True,
             style={'marginBottom': "20px"}
         )
-"""mode_indicator =[
-        dmc.Checkbox(
-            id=f'mood_indicator_{i}',
-            label=row,
-            checked=False,  # Set default checked status if required
-            style={"marginTop": '5px', "marginLeft": '33px'}
+
+
+
+p_dropdown = dmc.Select(
+                id='dropdown_danceability_level',
+                label='Select danceabile Music Level',
+                data=[{'label': danceability_level, 'value': danceability_level} for danceability_level in df['danceability_level'].dropna().unique()],
+                value=df['danceability_level'].dropna().iloc[0],
+                clearable=True,
+                style={'marginBottom': "20px"}
         )
-        for i, row in enumerate(df['mood_indicator'].dropna().unique())
-    ]"""
+
+
+mood_options = [
+    dmc.Checkbox(
+        label=mood,  
+        value=mood  
+    )
+    for mood in df['mood_indicator'].unique()
+]
+
+# Create the checkbox group
+mood_pd = dmc.CheckboxGroup(
+    id="check_box",
+    label="Check mood to predict",
+    withAsterisk=True,
+    mb=10,
+    children=mood_options,  
+    value=["Calm"]  
+)
 
 
 
