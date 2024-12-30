@@ -3,11 +3,13 @@ from dash.exceptions import PreventUpdate
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 import plotly.express as px
 import pandas as pd
+import plotly.graph_objects as go
 from dash import *
 from utils import df, generate_plotly_colors
-from components import dropdown, p_dropdown, track_genre_drp, mood_options
+from components import dropdown, p_dropdown, track_genre_drp, mood_options, mood_pd
 
 register_page(__name__, path="/insights", name="Insight Dashboard", order=2)
 
@@ -206,7 +208,14 @@ layout = dmc.MantineProvider(
                             ),
 
                             dmc.Grid(
-                                dmc.GridCol(mood_options)
+                                dmc.GridCol(dmc.Paper(
+                                    [
+                                        mood_pd
+                                    ],
+                                     p="md",
+                                        shadow="md",
+                                        withBorder=True,
+                                ))
                                 
                             ),
 
@@ -232,9 +241,10 @@ layout = dmc.MantineProvider(
                                         dmc.Paper(
                                             [
                                                 dmc.Text("Mood Analysis", size="sm", fw=600, mb=10),
-                                                dmc.Container(
+                                                dcc.Graph(
                                                     id="mood_analysis",
-                                                    style={"height": "250px"},
+                                                    style={"height": "255px"},
+                                                    config={"displayModeBar": True, "responsive": True},
                                                 ),
                                             ],
                                             p="md",
@@ -294,13 +304,65 @@ def pop_dan(selected_dan_level):
 
 
 
-@callback(
-    Output("artist_popularity", "children"),
-    Input("dropdown_track_genre", "value"),
-)
-def update_tabs(selected_track_genre):
-    if not selected_track_genre:
+@callback(Output("mood_analysis", "figure"),
+           [Input("check_box", "value")])
+
+def update_prediction_chart(selected_mood):
+    if not selected_mood:
         raise PreventUpdate
-    return create_mood_tabs(selected_track_genre)
+    
+    fitt_df = df[df['mood_indicator'].isin(selected_mood)]
+
+    # Drop unnecessary columns and convert categorical features
+    X = fitt_df.drop(columns=['popularity', 'track_id', 'artists', 'album_name', 'track_name', 'explicit_flag', 'mood_indicator'])
+    y = fitt_df['popularity']
+    
+    # Handle categorical features (if any remain)
+    categorical_cols = X.select_dtypes(include=['category', 'object']).columns
+    for col in categorical_cols:
+        le = LabelEncoder()
+        X[col] = le.fit_transform(X[col])
+    
+    # Select only numeric columns
+    X = X.select_dtypes(include=['int64', 'float64'])
 
 
+    # Train-test split
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Train model
+    model = RandomForestRegressor(random_state=42)
+    model.fit(X_train, y_train)
+
+    # Predict
+    y_pred = model.predict(X_test)
+    #mse = mean_squared_error(y_test, y_pred)
+    r2 = r2_score(y_test, y_pred)
+
+    # Prepare results for visualization
+    results = pd.DataFrame({
+        'Track_Name': fitt_df['track_name'].iloc[:len(y_pred)],
+        'Predicted_Popularity': y_pred
+    }).sort_values(by='Predicted_Popularity', ascending=False)
+
+    # Sort the data for top 10 and least 10
+    top_10 = results.nlargest(10, 'Predicted_Popularity')
+    least_10 = results.nsmallest(10, 'Predicted_Popularity')
+
+    # Concatenate top 10 and least 10
+    combined = pd.concat([top_10, least_10])
+    combined['Category'] = ['Top 10'] * len(top_10) + ['Least 10'] * len(least_10)
+
+    fig = px.bar(
+        results,
+        x='Track_Name',
+        y='Predicted_Popularity',
+        title=f"Predicted Popularity of Tracks and it's R2 {r2}",
+        labels={'Track_Name': 'Track Name', 'Predicted_Popularity': 'Predicted Popularity'},
+        color='Predicted_Popularity',
+        color_continuous_scale='Viridis'
+    )
+
+    # Update layout to remove margins
+    #fig.update_layout(margin={'l': 0, 'r': 0, 't': 4, 'b': 0})
+    return fig

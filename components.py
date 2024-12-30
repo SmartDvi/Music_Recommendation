@@ -35,13 +35,15 @@ p_dropdown = dmc.Select(
         )
 
 
-mood_options = [
+mood_options =dmc.Group( [
     dmc.Checkbox(
         label=mood,  
         value=mood  
     )
     for mood in df['mood_indicator'].unique()
-]
+],
+justify='center',
+grow=True)
 
 # Create the checkbox group
 mood_pd = dmc.CheckboxGroup(
