@@ -25,14 +25,25 @@ track_genre_drp = dmc.Select(
 
 
 
-p_dropdown = dmc.Select(
-                id='dropdown_danceability_level',
-                label='Select danceabile Music Level',
-                data=[{'label': danceability_level, 'value': danceability_level} for danceability_level in df['danceability_level'].dropna().unique()],
-                value=df['danceability_level'].dropna().iloc[0],
-                clearable=True,
-                style={'marginBottom': "20px"}
-        )
+p_check =dmc.Group( [
+    dmc.Checkbox(
+        label=mood,  
+        value=mood  
+    )
+    for mood in df['mood_indicator'].unique()
+],
+justify='center',
+grow=True)
+
+# Create the checkbox group
+mood_check = dmc.CheckboxGroup(
+    id="genre-select",
+    label="Check fot mood Indication",
+    withAsterisk=True,
+    mb=10,
+    children=p_check,  
+    value=["Calm"]  
+)
 
 
 mood_options =dmc.Group( [
@@ -65,3 +76,4 @@ mood_pd = dmc.CheckboxGroup(
 #print(f"the cplumn: {df['track_name'].value_counts()}")
 grouped_data = df.groupby("energy_level")["energy"].sum().reset_index()
 print(grouped_data)
+

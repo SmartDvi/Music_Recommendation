@@ -17,9 +17,9 @@ from utils import (
     generate_confusion_matrix
 )
 
-from components import dropdown, p_dropdown, track_genre_drp, mood_options, mood_pd
+from components import dropdown,mood_check, track_genre_drp, mood_options, mood_pd
 
-register_page(__name__, path="/insights", name="Insight Dashboard", order=2)
+register_page(__name__, path="/insights", name="Insight Dashboard", order=2, allow_duplicate=True)
 
 # Mood Colors
 COLOR_MAP = {
@@ -29,57 +29,6 @@ COLOR_MAP = {
     'Unhealthy': 'red',
     'Calm': 'purple',
 }
-
-
-# Helper Function: Artist Mood Popularity
-def artist_mood_popularity(mood_indicator, track_genre):
-    filtered_df = df[(df['mood_indicator'] == mood_indicator) & (df['track_genre'] == track_genre)]
-    if filtered_df.empty:
-        return dmc.Text("No data available for the selected mood and genre.", c="dimmed", ta="center")
-
-    data = filtered_df.groupby('artists')['popularity'].sum().reset_index()
-    top_20 = data.nlargest(20, 'popularity')
-    least_20 = data.nsmallest(20, 'popularity')
-    combined = pd.concat([top_20, least_20])
-
-    return dmc.BarChart(
-        id=f'pop_tab_{mood_indicator}',
-        datakey='artists',
-        data=combined.to_dict('records'),
-        orientation='vertical',
-        yAxisProps={"width": 80},
-        series=[
-            {
-                "name": "Popularity",
-                "data": combined['popularity'].tolist(),
-                "color": COLOR_MAP.get(mood_indicator, 'blue'),
-            }
-        ],
-    )
-
-
-# Helper Function: Tabs for Moods
-def create_mood_tabs(track_genre):
-    return dmc.Tabs(
-        [
-            dmc.TabsList(
-                [
-                    dmc.TabsTab('Happy', value='Happy'),
-                    dmc.TabsTab('Energetic', value='Energetic'),
-                    dmc.TabsTab('Sad', value='Sad'),
-                    dmc.TabsTab('Calm', value='Calm'),
-                ]
-            ),
-            dmc.TabsPanel(artist_mood_popularity('Happy', track_genre), value='Happy'),
-            dmc.TabsPanel(artist_mood_popularity('Energetic', track_genre), value='Energetic'),
-            dmc.TabsPanel(artist_mood_popularity('Sad', track_genre), value='Sad'),
-            dmc.TabsPanel(artist_mood_popularity('Calm', track_genre), value='Calm'),
-
-        ],
-        value='Happy',
-        id='return_tabs',
-    )
-
 
 # Metric Card Helper Function
 def create_metric_card(title, value, color):
@@ -138,7 +87,7 @@ layout = dmc.MantineProvider(
         dmc.Grid(
             [
                 dmc.GridCol(dropdown, span=3),
-                dmc.GridCol(p_dropdown,  span=3),
+                dmc.GridCol(mood_check,  span=3),
                 dmc.GridCol(track_genre_drp, span=3),
             ],
             gutter="xl",
@@ -160,10 +109,11 @@ layout = dmc.MantineProvider(
                                     ta="center",
                                     mt="10",
                                 ),
-                                dmc.Container(
-                                    id="artist_popularity",
-                                    style={"height": "620px"}
-                                ),
+                                dcc.Graph(
+                                                    id="Aartist_popularity",
+                                                    style={"height": "680px"},
+                                                    config={"displayModeBar": True, "responsive": True},
+                                                ),
                             ],
                             p="sm",
                             shadow="sm",
@@ -278,6 +228,7 @@ layout = dmc.MantineProvider(
 )
 
 
+
 # Callbacks
 @callback(
     Output("duration_vs_danceability", "figure"),
@@ -379,18 +330,15 @@ def update_prediction_chart(selected_mood):
 @callback(
     [
         Output("dropdown_track_genre", "options"),
-        Output("Average_Popularity_Mood", "figure")
+        Output("Average_Popularity_Mood", "figure"),
+        Output("Aartist_popularity", "figure"),
     ],
     [
-        Input("check_box", "value"),
-        Input("dropdown_track_genre", "value")
+        Input("genre-select", "value"),
+        Input("dropdown_track_genre", "value"),
     ]
 )
-def update_graph(selected_moods, selected_genres):
-    print("Selected Moods:", selected_moods)
-    print("Selected Genres:", selected_genres)
-    print("Available columns in the DataFrame:", df.columns)
-
+def update_combined_graphs(selected_moods, selected_genres):
     filtered_data = df
 
     # Filter by moods
@@ -401,8 +349,7 @@ def update_graph(selected_moods, selected_genres):
 
     # Ensure selected_genres is a list
     if isinstance(selected_genres, str):
-        selected_genres = [selected_genres]  # If it's a single genre, make it a list
-
+        selected_genres = [selected_genres] 
     # Filter by genres
     if selected_genres:
         filtered_data = filtered_data[filtered_data["track_genre"].isin(selected_genres)]
@@ -412,16 +359,15 @@ def update_graph(selected_moods, selected_genres):
     # Handle empty filtered data for dropdown
     if filtered_data.empty:
         dropdown_options = []
+        fig_avg_popularity = px.scatter(title="No data available for the selected filters.")
+        fig_artist_popularity = px.bar(title="No data available for the selected filters.")
     else:
         dropdown_options = [
             {"label": genre, "value": genre} for genre in filtered_data["track_genre"].unique()
         ]
 
-    # Handle empty filtered data for scatter plot
-    if filtered_data.empty:
-        fig = px.scatter(title="No data available for the selected filters.")
-    else:
-        fig = px.scatter(
+        # Average Popularity Figure
+        fig_avg_popularity = px.scatter(
             filtered_data,
             x="duration_min",
             y="popularity",
@@ -429,9 +375,52 @@ def update_graph(selected_moods, selected_genres):
             hover_data=["track_genre"],
             title="Track Popularity vs Duration (Filtered)"
         )
-        fig.update_layout(margin={'l': 0, 'r': 0, 't': 4, 'b': 0})
+        fig_avg_popularity.update_layout(margin={'l': 0, 'r': 0, 't': 4, 'b': 0})
 
-    return dropdown_options, fig
+        # Artist Popularity Figure
+        # Artist Popularity Figure with Vertical Orientation
+    top_artists = filtered_data.nlargest(10, 'popularity')
+    fig_artist_popularity = px.bar(
+        top_artists,
+        y="artists",  
+        x="popularity",  
+        color="popularity_level",  
+        text="popularity",  
+        title="Top 10 Artists by Popularity Score on the Platform",
+        labels={
+            "artists": "Artists",
+            "popularity": "Popularity Score",
+            "popularity_level": "Popularity Level",
+        },
+        hover_data=["track_name", "album_name"],  # Additional details on hover
+        orientation="h"  
+    )
+
+    # Sort bars by popularity
+    fig_artist_popularity.update_yaxes(categoryorder="total ascending")  # Reverse for vertical orientation
+
+    # Enhance visuals
+    fig_artist_popularity.update_traces(texttemplate='%{text}', textposition='outside')
+    fig_artist_popularity.update_layout(
+    title={
+        'text': "Top 10 Artists by Popularity Score",
+        'x': 0.5,  # Center align title
+        'xanchor': 'center'
+    },
+    xaxis=dict(title="Popularity Score"),  
+    yaxis=dict(title="Artists"),
+    showlegend=True,
+    legend_title="Popularity Level",
+    legend=dict(
+        orientation="h", 
+        x=0.5,  
+        y=1.1,  
+        xanchor="center",  
+        yanchor="bottom"  
+    ),
+    plot_bgcolor="rgba(0,0,0,0)"  
+    )
+    return dropdown_options, fig_avg_popularity, fig_artist_popularity
 
 @callback(
     Output("genre_distribution", "figure"),
@@ -526,3 +515,101 @@ def update_chart(selected_track_genre):
     fig.update_layout(margin={'l': 0, 'r': 0, 't': 4, 'b': 0})
 
     return fig
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"""
+@callback(
+    [
+        Output("dropdown_track_genre", "options"),
+        Output("Aartist_popularity", "figure")
+    ],
+    [
+        Input("genre-select", "value"),
+        Input("dropdown_track_genre", "value")
+    ]
+)
+def update_graph(selected_moods, selected_genres):
+    filtered_data = df
+
+    # Filter by moods
+    if selected_moods:
+        filtered_data = filtered_data[filtered_data["mood_indicator"].isin(selected_moods)]
+    else:
+        print("No moods selected; skipping mood filtering.")
+
+    # Ensure selected_genres is a list
+    if isinstance(selected_genres, str):
+        selected_genres = [selected_genres]  # If it's a single genre, make it a list
+
+    # Filter by genres
+    if selected_genres:
+        filtered_data = filtered_data[filtered_data["track_genre"].isin(selected_genres)]
+    else:
+        print("No genres selected; skipping genre filtering.")
+
+    # Handle empty filtered data for dropdown
+    if filtered_data.empty:
+        dropdown_options = []
+    else:
+        dropdown_options = [
+            {"label": genre, "value": genre} for genre in filtered_data["track_genre"].unique()
+        ]
+
+    # Handle empty filtered data for scatter plot
+    if filtered_data.empty:
+        fig = px.scatter(title="No data available for the selected filters.")
+    else:
+        top_artists = filtered_data.nlargest(10, 'popularity')
+
+        # Create the bar chart
+        fig = px.bar(
+            top_artists,
+            x="artists",
+            y="popularity",
+            color="popularity_level",  # Adds color coding based on popularity level
+            text="popularity",         # Display popularity values on the bars
+            title="Top 10 Artists by Popularity Score on the Platform",
+            labels={
+                "artists": "Artists",
+                "popularity": "Popularity Score",
+                "popularity_level": "Popularity Level",
+            },
+            hover_data=["track_name", "album_name"],  # Additional details on hover
+        )
+
+        # Sort bars by popularity
+        fig.update_xaxes(categoryorder="total descending")
+
+        # Enhance visuals
+        fig.update_traces(texttemplate='%{text}', textposition='outside')
+        fig.update_layout(
+            title={
+                'text': "Top 10 Artists by Popularity Score",
+                'x': 0.5,  # Center align title
+                'xanchor': 'center'
+            },
+            yaxis=dict(title="Popularity Score"),
+            xaxis=dict(title="Artists"),
+            showlegend=True,
+            legend_title="Popularity Level",
+            plot_bgcolor="rgba(0,0,0,0)"  # Remove gridlines for a cleaner look
+        )
+        return fig, dropdown_options
+
+
+"""
