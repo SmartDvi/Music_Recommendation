@@ -8,7 +8,15 @@ import plotly.express as px
 import pandas as pd
 import plotly.graph_objects as go
 from dash import *
-from utils import df, generate_plotly_colors
+
+from utils import (
+    df,
+    generate_feature_importance_plot,
+    generate_prediction_analysis,
+    generate_class_distribution_plot,
+    generate_confusion_matrix
+)
+
 from components import dropdown, p_dropdown, track_genre_drp, mood_options, mood_pd
 
 register_page(__name__, path="/insights", name="Insight Dashboard", order=2)
@@ -174,7 +182,7 @@ layout = dmc.MantineProvider(
                                     dmc.GridCol(
                                         dmc.Paper(
                                             [
-                                                dmc.Text("Average Popularity by Mood", size="sm", fw=600, mb=10),
+                                                dmc.Text("Track Popularity vs Duration", size="sm", fw=600, ta="center", mb=10),
                                                 dcc.Graph(
                                                     id="Average_Popularity_Mood",
                                                     style={"height": "255px"},
@@ -225,10 +233,11 @@ layout = dmc.MantineProvider(
                                     dmc.GridCol(
                                         dmc.Paper(
                                             [
-                                                dmc.Text("Genre Distribution", size="sm", fw=600, mb=10),
-                                                dmc.Container(
+                                                dmc.Text("Popularity by Tempo Category", size="sm", ta="center", fw=600, mb=10),
+                                                dcc.Graph(
                                                     id="genre_distribution",
-                                                    style={"height": "250px"},
+                                                    style={"height": "255px"},
+                                                    config={"displayModeBar": True, "responsive": True},
                                                 ),
                                             ],
                                             p="md",
@@ -240,7 +249,7 @@ layout = dmc.MantineProvider(
                                     dmc.GridCol(
                                         dmc.Paper(
                                             [
-                                                dmc.Text("Mood Analysis", size="sm", fw=600, mb=10),
+                                                dmc.Text("Popularity Prediction and model Evaluation", size="sm", ta="center", fw=600, mb=10),
                                                 dcc.Graph(
                                                     id="mood_analysis",
                                                     style={"height": "255px"},
@@ -354,15 +363,166 @@ def update_prediction_chart(selected_mood):
     combined['Category'] = ['Top 10'] * len(top_10) + ['Least 10'] * len(least_10)
 
     fig = px.bar(
-        results,
+        combined,
         x='Track_Name',
         y='Predicted_Popularity',
         title=f"Predicted Popularity of Tracks and it's R2 {r2}",
-        labels={'Track_Name': 'Track Name', 'Predicted_Popularity': 'Predicted Popularity'},
+        labels={'Track_Name': 'Track Name', 'Predicted_Popularity': 'Pred Po'},
         color='Predicted_Popularity',
         color_continuous_scale='Viridis'
     )
 
     # Update layout to remove margins
     #fig.update_layout(margin={'l': 0, 'r': 0, 't': 4, 'b': 0})
+    return fig
+
+@callback(
+    [
+        Output("dropdown_track_genre", "options"),
+        Output("Average_Popularity_Mood", "figure")
+    ],
+    [
+        Input("check_box", "value"),
+        Input("dropdown_track_genre", "value")
+    ]
+)
+def update_graph(selected_moods, selected_genres):
+    print("Selected Moods:", selected_moods)
+    print("Selected Genres:", selected_genres)
+    print("Available columns in the DataFrame:", df.columns)
+
+    filtered_data = df
+
+    # Filter by moods
+    if selected_moods:
+        filtered_data = filtered_data[filtered_data["mood_indicator"].isin(selected_moods)]
+    else:
+        print("No moods selected; skipping mood filtering.")
+
+    # Ensure selected_genres is a list
+    if isinstance(selected_genres, str):
+        selected_genres = [selected_genres]  # If it's a single genre, make it a list
+
+    # Filter by genres
+    if selected_genres:
+        filtered_data = filtered_data[filtered_data["track_genre"].isin(selected_genres)]
+    else:
+        print("No genres selected; skipping genre filtering.")
+
+    # Handle empty filtered data for dropdown
+    if filtered_data.empty:
+        dropdown_options = []
+    else:
+        dropdown_options = [
+            {"label": genre, "value": genre} for genre in filtered_data["track_genre"].unique()
+        ]
+
+    # Handle empty filtered data for scatter plot
+    if filtered_data.empty:
+        fig = px.scatter(title="No data available for the selected filters.")
+    else:
+        fig = px.scatter(
+            filtered_data,
+            x="duration_min",
+            y="popularity",
+            color="mood_indicator",
+            hover_data=["track_genre"],
+            title="Track Popularity vs Duration (Filtered)"
+        )
+        fig.update_layout(margin={'l': 0, 'r': 0, 't': 4, 'b': 0})
+
+    return dropdown_options, fig
+
+@callback(
+    Output("genre_distribution", "figure"),
+    Input("dropdown_track_genre", "value")
+
+)
+
+def update_chart(selected_track_genre):
+    if not selected_track_genre:
+        raise PreventUpdate
+    
+    # Ensure selected_track_genre is a list-like object
+    if isinstance(selected_track_genre, str):
+        selected_track_genre = [selected_track_genre]
+
+    fit_df = df[df['track_genre'].isin(selected_track_genre)]
+
+    fig = px.box(
+        fit_df,
+        x="tempo_category",
+        y="popularity",
+        color="tempo_category",
+        title="Popularity by Tempo Category",
+        labels={
+            "tempo_category": "Tempo Category",
+            "popularity": "Popularity (Popularity Score)"
+        },
+        template="plotly_white"
+    )
+
+    # Customizing the box plot for better insights
+    fig.update_traces(
+        marker=dict(size=10, opacity=0.6),
+        boxmean="sd",  
+        jitter=0.05,   
+        pointpos=-1.8  
+    )
+
+    # Adding title, axis labels, and annotations for better understanding
+    fig.update_layout(
+        title={
+            'text': "Popularity by Tempo Category (Understanding the Distribution)",
+            'x': 0.5,  
+            'xanchor': 'center',
+            'yanchor': 'top'
+        },
+        xaxis_title="Tempo Category (Speed of the Track)",
+        yaxis_title="Popularity Score (Measure of Track's Popularity)",
+        showlegend=False,  
+        annotations=[
+            dict(
+                x=0,  
+                y=fit_df['popularity'].min(),
+                xref="x",
+                yref="y",
+                text="Low Tempo: Slow-paced tracks.",
+                showarrow=True,
+                arrowhead=2,
+                arrowsize=1,
+                ax=-60,
+                ay=-50,
+                font=dict(size=12, color="blue")
+            ),
+            dict(
+                x=2,  # Positioning annotation for 'high tempo'
+                y=fit_df['popularity'].max(),
+                xref="x",
+                yref="y",
+                text="High Tempo: Fast-paced tracks.",
+                showarrow=True,
+                arrowhead=2,
+                arrowsize=1,
+                ax=-60,
+                ay=-50,
+                font=dict(size=12, color="red")
+            ),
+            dict(
+                x=1,  
+                y=fit_df['popularity'].mean(),
+                xref="x",
+                yref="y",
+                text="Medium Tempo: Moderately-paced tracks.",
+                showarrow=True,
+                arrowhead=2,
+                arrowsize=1,
+                ax=30,
+                ay=0,
+                font=dict(size=12, color="green")
+            )
+        ]
+    )
+    fig.update_layout(margin={'l': 0, 'r': 0, 't': 4, 'b': 0})
+
     return fig
