@@ -255,6 +255,7 @@ def pop_dan(selected_dan_level):
         size="energy",
         hover_data=["track_name", "artists"],
         labels={"danceability": "Danceability", "popularity": "Popularity"},
+        template="plotly_white"
     )
     
     # Update layout to remove margins
@@ -320,7 +321,8 @@ def update_prediction_chart(selected_mood):
         title=f"Predicted Popularity of Tracks and it's R2 {r2}",
         labels={'Track_Name': 'Track Name', 'Predicted_Popularity': 'Pred Po'},
         color='Predicted_Popularity',
-        color_continuous_scale='Viridis'
+        color_continuous_scale='Viridis',
+        template="plotly_white"
     )
 
     # Update layout to remove margins
@@ -373,9 +375,11 @@ def update_combined_graphs(selected_moods, selected_genres):
             y="popularity",
             color="mood_indicator",
             hover_data=["track_genre"],
-            title="Track Popularity vs Duration (Filtered)"
+            template="plotly_white"
         )
         fig_avg_popularity.update_layout(margin={'l': 0, 'r': 0, 't': 4, 'b': 0})
+       
+
 
         # Artist Popularity Figure
         # Artist Popularity Figure with Vertical Orientation
@@ -418,8 +422,9 @@ def update_combined_graphs(selected_moods, selected_genres):
         xanchor="center",  
         yanchor="bottom"  
     ),
-    plot_bgcolor="rgba(0,0,0,0)"  
-    )
+    plot_bgcolor="rgba(0,0,0,0)" )
+    fig_artist_popularity.update_layout(margin={'l': 0, 'r': 0, 't': 4, 'b': 0})
+
     return dropdown_options, fig_avg_popularity, fig_artist_popularity
 
 @callback(
@@ -528,88 +533,3 @@ def update_chart(selected_track_genre):
 
 
 
-
-
-
-
-"""
-@callback(
-    [
-        Output("dropdown_track_genre", "options"),
-        Output("Aartist_popularity", "figure")
-    ],
-    [
-        Input("genre-select", "value"),
-        Input("dropdown_track_genre", "value")
-    ]
-)
-def update_graph(selected_moods, selected_genres):
-    filtered_data = df
-
-    # Filter by moods
-    if selected_moods:
-        filtered_data = filtered_data[filtered_data["mood_indicator"].isin(selected_moods)]
-    else:
-        print("No moods selected; skipping mood filtering.")
-
-    # Ensure selected_genres is a list
-    if isinstance(selected_genres, str):
-        selected_genres = [selected_genres]  # If it's a single genre, make it a list
-
-    # Filter by genres
-    if selected_genres:
-        filtered_data = filtered_data[filtered_data["track_genre"].isin(selected_genres)]
-    else:
-        print("No genres selected; skipping genre filtering.")
-
-    # Handle empty filtered data for dropdown
-    if filtered_data.empty:
-        dropdown_options = []
-    else:
-        dropdown_options = [
-            {"label": genre, "value": genre} for genre in filtered_data["track_genre"].unique()
-        ]
-
-    # Handle empty filtered data for scatter plot
-    if filtered_data.empty:
-        fig = px.scatter(title="No data available for the selected filters.")
-    else:
-        top_artists = filtered_data.nlargest(10, 'popularity')
-
-        # Create the bar chart
-        fig = px.bar(
-            top_artists,
-            x="artists",
-            y="popularity",
-            color="popularity_level",  # Adds color coding based on popularity level
-            text="popularity",         # Display popularity values on the bars
-            title="Top 10 Artists by Popularity Score on the Platform",
-            labels={
-                "artists": "Artists",
-                "popularity": "Popularity Score",
-                "popularity_level": "Popularity Level",
-            },
-            hover_data=["track_name", "album_name"],  # Additional details on hover
-        )
-
-        # Sort bars by popularity
-        fig.update_xaxes(categoryorder="total descending")
-
-        # Enhance visuals
-        fig.update_traces(texttemplate='%{text}', textposition='outside')
-        fig.update_layout(
-            title={
-                'text': "Top 10 Artists by Popularity Score",
-                'x': 0.5,  # Center align title
-                'xanchor': 'center'
-            },
-            yaxis=dict(title="Popularity Score"),
-            xaxis=dict(title="Artists"),
-            showlegend=True,
-            legend_title="Popularity Level",
-            plot_bgcolor="rgba(0,0,0,0)"  # Remove gridlines for a cleaner look
-        )
-        return fig, dropdown_options
-
-
-"""
