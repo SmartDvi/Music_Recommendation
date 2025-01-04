@@ -11,13 +11,19 @@ from dash import *
 
 from utils import (
     df,
+    generate_prediction_chart,
     generate_feature_importance_plot,
     generate_prediction_analysis,
     generate_class_distribution_plot,
-    generate_confusion_matrix
+    generate_confusion_matrix,
 )
 
-from components import dropdown,mood_check, track_genre_drp, mood_options, mood_pd
+from components import (dropdown,
+                        mood_check, 
+                        track_genre_drp, 
+                        mood_options, 
+                        mood_pd
+                        )
 
 register_page(__name__, path="/insights", name="Insight Dashboard", order=2, allow_duplicate=True)
 
@@ -29,6 +35,65 @@ COLOR_MAP = {
     'Unhealthy': 'red',
     'Calm': 'purple',
 }
+
+# Tabs Helper Function
+def create_insights_tabs():
+    return dmc.Tabs(
+        [
+            dmc.TabsList(
+                [
+                    dmc.TabsTab("Prediction", value="generate_prediction_chart"),
+                    dmc.TabsTab("Feature Importance", value="feature_importance"),
+                    dmc.TabsTab("Prediction Analysis", value="prediction_analysis"),
+                    dmc.TabsTab("Class Distribution", value="class_distribution"),
+                    dmc.TabsTab("Confusion Matrix", value="confusion_matrix"),
+                ]
+            ),
+            dmc.TabsPanel(
+                dcc.Graph(
+                    id="generate_prediction_chart",
+                    style={"height": "250px"},
+                    config={"displayModeBar": True, "responsive": True},
+                ),
+                value="generate_prediction_chart",
+            ),
+            dmc.TabsPanel(
+                dcc.Graph(
+                    id="feature_importance",
+                    style={"height": "250px"},
+                    config={"displayModeBar": True, "responsive": True},
+                ),
+                value="feature_importance",
+            ),
+            dmc.TabsPanel(
+                dcc.Graph(
+                    id="prediction_analysis",
+                    style={"height": "250px"},
+                    config={"displayModeBar": True, "responsive": True},
+                ),
+                value="prediction_analysis",
+            ),
+            dmc.TabsPanel(
+                dcc.Graph(
+                    id="class_distribution",
+                    style={"height": "250px"},
+                    config={"displayModeBar": True, "responsive": True},
+                ),
+                value="class_distribution",
+            ),
+            dmc.TabsPanel(
+                dcc.Graph(
+                    id="confusion_matrix",
+                    style={"height": "250px"},
+                    config={"displayModeBar": True, "responsive": True},
+                ),
+                value="confusion_matrix",
+            ),
+        ],
+        value="generate_prediction_chart",
+        id="insights_tabs",
+    )
+
 
 # Metric Card Helper Function
 def create_metric_card(title, value, color):
@@ -200,11 +265,7 @@ layout = dmc.MantineProvider(
                                         dmc.Paper(
                                             [
                                                 dmc.Text("Popularity Prediction and model Evaluation", size="sm", ta="center", fw=600, mb=10),
-                                                dcc.Graph(
-                                                    id="mood_analysis",
-                                                    style={"height": "255px"},
-                                                    config={"displayModeBar": True, "responsive": True},
-                                                ),
+                                               create_insights_tabs(),
                                             ],
                                             p="md",
                                             shadow="md",
@@ -263,71 +324,49 @@ def pop_dan(selected_dan_level):
     
     return fig
 
-
-
-@callback(Output("mood_analysis", "figure"),
-           [Input("check_box", "value")])
-
-def update_prediction_chart(selected_mood):
-    if not selected_mood:
+@callback(
+    [
+        Output("generate_prediction_chart", "figure"),
+        Output("feature_importance", "figure"),
+        Output("prediction_analysis", "figure"),
+        Output("class_distribution", "figure"),
+        Output("confusion_matrix", "figure"),
+    ],
+    Input("insights_tabs", "value"),
+)
+def update_tab_content(active_tab):
+    if active_tab == "generate_prediction_chart":
+        fig = generate_prediction_chart(df, ["Happy", "Sad", "Calm"])
+        return fig, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+    elif active_tab == "feature_importance":
+        model = RandomForestRegressor(random_state=42)
+        X = df.select_dtypes(include=["float64", "int64"])
+        y = df["popularity"]
+        model.fit(X, y)
+        fig = generate_feature_importance_plot(model, X.columns)
+        return dash.no_update, fig, dash.no_update, dash.no_update, dash.no_update
+    elif active_tab == "prediction_analysis":
+        X_train, X_test, y_train, y_test = train_test_split(
+            df.select_dtypes(include=["float64", "int64"]),
+            df["popularity"],
+            test_size=0.2,
+            random_state=42,
+        )
+        model = RandomForestRegressor(random_state=42)
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+        metrics, fig = generate_prediction_analysis(y_test, y_pred, model_type="regression")
+        return dash.no_update, dash.no_update, fig, dash.no_update, dash.no_update
+    elif active_tab == "class_distribution":
+        fig = generate_class_distribution_plot(df, "popularity_level")
+        return dash.no_update, dash.no_update, dash.no_update, fig, dash.no_update
+    elif active_tab == "confusion_matrix":
+        y_test = [0, 1, 0, 1]
+        y_pred = [0, 1, 1, 1]
+        fig = generate_confusion_matrix(y_test, y_pred)
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, fig
+    else:
         raise PreventUpdate
-    
-    fitt_df = df[df['mood_indicator'].isin(selected_mood)]
-
-    # Drop unnecessary columns and convert categorical features
-    X = fitt_df.drop(columns=['popularity', 'track_id', 'artists', 'album_name', 'track_name', 'explicit_flag', 'mood_indicator'])
-    y = fitt_df['popularity']
-    
-    # Handle categorical features (if any remain)
-    categorical_cols = X.select_dtypes(include=['category', 'object']).columns
-    for col in categorical_cols:
-        le = LabelEncoder()
-        X[col] = le.fit_transform(X[col])
-    
-    # Select only numeric columns
-    X = X.select_dtypes(include=['int64', 'float64'])
-
-
-    # Train-test split
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-    # Train model
-    model = RandomForestRegressor(random_state=42)
-    model.fit(X_train, y_train)
-
-    # Predict
-    y_pred = model.predict(X_test)
-    #mse = mean_squared_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
-
-    # Prepare results for visualization
-    results = pd.DataFrame({
-        'Track_Name': fitt_df['track_name'].iloc[:len(y_pred)],
-        'Predicted_Popularity': y_pred
-    }).sort_values(by='Predicted_Popularity', ascending=False)
-
-    # Sort the data for top 10 and least 10
-    top_10 = results.nlargest(10, 'Predicted_Popularity')
-    least_10 = results.nsmallest(10, 'Predicted_Popularity')
-
-    # Concatenate top 10 and least 10
-    combined = pd.concat([top_10, least_10])
-    combined['Category'] = ['Top 10'] * len(top_10) + ['Least 10'] * len(least_10)
-
-    fig = px.bar(
-        combined,
-        x='Track_Name',
-        y='Predicted_Popularity',
-        title=f"Predicted Popularity of Tracks and it's R2 {r2}",
-        labels={'Track_Name': 'Track Name', 'Predicted_Popularity': 'Pred Po'},
-        color='Predicted_Popularity',
-        color_continuous_scale='Viridis',
-        template="plotly_white"
-    )
-
-    # Update layout to remove margins
-    #fig.update_layout(margin={'l': 0, 'r': 0, 't': 4, 'b': 0})
-    return fig
 
 @callback(
     [
@@ -381,7 +420,7 @@ def update_combined_graphs(selected_moods, selected_genres):
        
 
 
-        # Artist Popularity Figure
+
         # Artist Popularity Figure with Vertical Orientation
     top_artists = filtered_data.nlargest(10, 'popularity')
     fig_artist_popularity = px.bar(

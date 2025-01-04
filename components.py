@@ -77,3 +77,62 @@ mood_pd = dmc.CheckboxGroup(
 grouped_data = df.groupby("energy_level")["energy"].sum().reset_index()
 print(grouped_data)
 
+# Tabs Helper Function
+def create_insights_tabs():
+    return dmc.Tabs(
+        [
+            dmc.TabsList(
+                [
+                    dmc.TabsTab("Prediction Chart", value="generate_prediction_chart"),
+                    dmc.TabsTab("Feature Importance", value="feature_importance"),
+                    dmc.TabsTab("Prediction Analysis", value="prediction_analysis"),
+                    dmc.TabsTab("Class Distribution", value="class_distribution"),
+                    dmc.TabsTab("Confusion Matrix", value="confusion_matrix"),
+                ]
+            ),
+            dmc.TabsPanel(
+                dcc.Graph(
+                    id="generate_prediction_chart",
+                    style={"height": "450px"},
+                    config={"displayModeBar": True, "responsive": True},
+                ),
+                value="generate_prediction_chart",
+            ),
+            dmc.TabsPanel(
+                dcc.Graph(
+                    id="feature_importance",
+                    style={"height": "450px"},
+                    config={"displayModeBar": True, "responsive": True},
+                ),
+                value="feature_importance",
+            ),
+            dmc.TabsPanel(
+                dcc.Graph(
+                    id="prediction_analysis",
+                    style={"height": "450px"},
+                    config={"displayModeBar": True, "responsive": True},
+                ),
+                value="prediction_analysis",
+            ),
+            dmc.TabsPanel(
+                dcc.Graph(
+                    id="class_distribution",
+                    style={"height": "450px"},
+                    config={"displayModeBar": True, "responsive": True},
+                ),
+                value="class_distribution",
+            ),
+            dmc.TabsPanel(
+                dcc.Graph(
+                    id="confusion_matrix",
+                    style={"height": "450px"},
+                    config={"displayModeBar": True, "responsive": True},
+                ),
+                value="confusion_matrix",
+            ),
+        ],
+        value="generate_prediction_chart",
+        id="insights_tabs",
+    )
+
+

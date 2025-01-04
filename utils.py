@@ -127,9 +127,17 @@ def generate_prediction_chart(df, selected_mood):
         'Predicted_Popularity': y_pred
     }).sort_values(by='Predicted_Popularity', ascending=False)
 
+     # Sort the data for top 10 and least 10
+    top_10 = results.nlargest(10, 'Predicted_Popularity')
+    least_10 = results.nsmallest(10, 'Predicted_Popularity')
+
+    # Concatenate top 10 and least 10
+    combined = pd.concat([top_10, least_10])
+    combined['Category'] = ['Top 10'] * len(top_10) + ['Least 10'] * len(least_10)
+
     # Generate bar chart
     fig = px.bar(
-        results,
+        combined,
         x='Track_Name',
         y='Predicted_Popularity',
         title=f"Predicted Popularity of Tracks (R² = {r2:.2f})",
@@ -208,6 +216,7 @@ def generate_prediction_analysis(y_test, y_pred, model_type="regression"):
             title=f"Confusion Matrix (Accuracy = {acc:.2f})",
             color_continuous_scale="Viridis"
         )
+        fig.update_layout(margin={'l': 0, 'r': 0, 't': 4, 'b': 0})
     
     return metrics, fig
 
@@ -253,3 +262,73 @@ def generate_confusion_matrix(y_test, y_pred):
         color_continuous_scale="Blues"
     )
     return fig
+
+
+
+"""
+@callback(Output("mood_analysis", "figure"),
+           [Input("check_box", "value")])
+
+def update_prediction_chart(selected_mood):
+    if not selected_mood:
+        raise PreventUpdate
+    
+    fitt_df = df[df['mood_indicator'].isin(selected_mood)]
+
+    # Drop unnecessary columns and convert categorical features
+    X = fitt_df.drop(columns=['popularity', 'track_id', 'artists', 'album_name', 'track_name', 'explicit_flag', 'mood_indicator'])
+    y = fitt_df['popularity']
+    
+    # Handle categorical features (if any remain)
+    categorical_cols = X.select_dtypes(include=['category', 'object']).columns
+    for col in categorical_cols:
+        le = LabelEncoder()
+        X[col] = le.fit_transform(X[col])
+    
+    # Select only numeric columns
+    X = X.select_dtypes(include=['int64', 'float64'])
+
+
+    # Train-test split
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Train model
+    model = RandomForestRegressor(random_state=42)
+    model.fit(X_train, y_train)
+
+    # Predict
+    y_pred = model.predict(X_test)
+    #mse = mean_squared_error(y_test, y_pred)
+    r2 = r2_score(y_test, y_pred)
+
+    # Prepare results for visualization
+    results = pd.DataFrame({
+        'Track_Name': fitt_df['track_name'].iloc[:len(y_pred)],
+        'Predicted_Popularity': y_pred
+    }).sort_values(by='Predicted_Popularity', ascending=False)
+
+    # Sort the data for top 10 and least 10
+    top_10 = results.nlargest(10, 'Predicted_Popularity')
+    least_10 = results.nsmallest(10, 'Predicted_Popularity')
+
+    # Concatenate top 10 and least 10
+    combined = pd.concat([top_10, least_10])
+    combined['Category'] = ['Top 10'] * len(top_10) + ['Least 10'] * len(least_10)
+
+    fig = px.bar(
+        combined,
+        x='Track_Name',
+        y='Predicted_Popularity',
+        title=f"Predicted Popularity of Tracks and it's R2 {r2}",
+        labels={'Track_Name': 'Track Name', 'Predicted_Popularity': 'Pred Po'},
+        color='Predicted_Popularity',
+        color_continuous_scale='Viridis',
+        template="plotly_white"
+    )
+
+    # Update layout to remove margins
+    #fig.update_layout(margin={'l': 0, 'r': 0, 't': 4, 'b': 0})
+    return fig
+
+
+"""
